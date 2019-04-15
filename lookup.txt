@@ -1,0 +1,24 @@
+users_files = {
+    'userID' : ['list of files'],
+}
+
+file/user_node = {
+    'filename_userID' : ['list of nodes'],
+
+}
+
+file/node_path = {
+    'filename_nodeID' : 'path',
+
+}
+
+node_alive = {
+    'nodeID' : 'alive/not',
+
+}
+
+master_IP = "123456" 
+master_ports = ("1000", "2000", "3000", "4000", "5000") #5
+
+node_IP = ("each node ip") 
+node_port = ("1000", "2000", "3000") 

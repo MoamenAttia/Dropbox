@@ -24,8 +24,8 @@ class upload:
             add = data + size % total
         else:
             add = data
-
-    	socket.send_string(str(numberOfChunks))
+        chunk = str(add+data)
+    	socket.send_string(chunk)
     	self.ack = socket.recv_string()
 
     	for i in range(index*data, index*data + add):
