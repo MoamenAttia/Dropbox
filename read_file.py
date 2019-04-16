@@ -2,7 +2,7 @@
 chunksize = 1000
 
 def read_file(filepath):
-	file = open(filepath, 'r')
+	file = open(filepath, "rb")
 
 	data = []
 	while True:
@@ -15,7 +15,7 @@ def read_file(filepath):
 
 
 def write_file(data, filepath):
-	file = open(path, 'w')
+	file = open(path, "wb")
 	for bt in data:
 		file.write(bt)
 	file.close()
