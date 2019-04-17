@@ -3,33 +3,35 @@ import zmq
 class upload:    
     def __init__(self, port):
     	self.port = port
-        self.ack
+        self.ack = "ok"
 
-    def run(self, path):
+    def run(self):
         context = zmq.Context()
     	socket = context.socket(zmq.REP)
-    	socket.bind("tcp://*:%s" % self.port)
+    	socket.bind(f"tcp://*:{self.port}")
 
-    	video = read_file(path)
-        size = len(video)
+    	video = socket.recv_string()
+		socket.send_string(self.ack)
 
-    	params = socket.recv_string()
+		params = socket.recv_string()
+		socket.send_string(self.ack)
     	params = params.split(",")
     	index = int(params[0]) #index of current node
     	total = int(params[1]) #total number of nodes taht will  send the file
 
+        size = len(video)
         data = int(size/total)
-        print(data)
-        if (index == total - 1):
+        
+		if (index == total - 1):
             add = data + size % total
         else:
             add = data
-        chunk = str(add+data)
+        chunk = str(add) 
     	socket.send_string(chunk)
     	self.ack = socket.recv_string()
 
     	for i in range(index*data, index*data + add):
     	    socket.send_pyobj(video[i])
-    	    ack = socket.recv_string()
+    	    self.ack = socket.recv_string()
 
-    	socket.send_string(ack)
+    	socket.send_string(self.ack)
