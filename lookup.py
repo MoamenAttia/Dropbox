@@ -10,7 +10,7 @@ class lookup(object):
     def addNode(self, node):
         self.nodes_data.append()
 
-    def dropNode(self, node):
+    def drop_node(self, node):
         node.down_node()
 
     def filter(self):
