@@ -1,4 +1,5 @@
 import zmq
+from read_file import read_file
 
 class upload:    
     def __init__(self, port, filename):
