@@ -14,7 +14,7 @@ class download:
     	socket = context.socket(zmq.REQ)
     	socket.connect (f"tcp://{ip}:{port}")
         
-    	socket.send_string(filename)
+    	socket.send_string("download " + filename)
 		self.ack = socket.recv_string()
 
         msg = f"{node},{total}"
@@ -45,7 +45,7 @@ class download:
         total = len(src)
 
         for i in range(total):
-    		thread = Thread(target=self.downloadProcess(src[i][0], src[i][1], i, total, filename))
+    		thread = Thread(target = self.downloadProcess(src[i][0], src[i][1], i, total, filename))
     		processes.append(thread)
 
         for thread in processes:

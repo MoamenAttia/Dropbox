@@ -1,17 +1,20 @@
 import zmq
 
 class upload:    
-    def __init__(self, port):
+    def __init__(self, port, filename):
     	self.port = port
         self.ack = "ok"
+		self.filename = filename
 
     def run(self):
         context = zmq.Context()
     	socket = context.socket(zmq.REP)
     	socket.bind(f"tcp://*:{self.port}")
 
-    	video = socket.recv_string()
-		socket.send_string(self.ack)
+    	#filename = socket.recv_string()
+		#socket.send_string(self.ack)
+
+		video = read_file(filename)
 
 		params = socket.recv_string()
 		socket.send_string(self.ack)
@@ -22,6 +25,7 @@ class upload:
         size = len(video)
         data = int(size/total)
         
+		
 		if (index == total - 1):
             add = data + size % total
         else:

@@ -4,7 +4,7 @@ class showfiles:
     def __init__(self):
         self.files = []
 
-    def showfiles(self, user_id):
+    def run(self, user_id):
         context = zmq.Context()
     	socket = context.socket(zmq.REQ)
     	socket.connect (f"tcp://{master_IP}:{master_ports}")

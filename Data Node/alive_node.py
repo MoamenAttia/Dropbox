@@ -8,10 +8,10 @@ def getIP():
     IPAddr = socket.gethostbyname(hostname)
     return IPAddr
 
-def send_alive(node_id, master_IP, master_port):
+def send_alive(node_id):
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
-    socket.connect(f"tcp://{master_IP}:{master_port}" )
+    socket.connect(f"tcp://{master_IP}:{master_ports}" )
 
     node_ip = getIP()
     while True:

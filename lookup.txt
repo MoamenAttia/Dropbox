@@ -21,4 +21,4 @@ master_IP = "123456"
 master_ports = ("1000", "2000", "3000", "4000", "5000") #5
 
 node_IP = ("each node ip") 
-node_port = ("1000", "2000", "3000") 
+node_ports = ("1000", "2000", "3000") 
