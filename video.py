@@ -1,6 +1,5 @@
 class video(object):
-    def __init__(self, filename, filePath, fileSize, nodeIP):
+    def __init__(self, filename, filePath, node_ips):
         self.filename = filename
         self.filePath = filePath
-        self.fileSize = fileSize
-        self.nodeIP = nodeIP
+        self.node_ips = node_ips

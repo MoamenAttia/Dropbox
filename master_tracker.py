@@ -1,61 +1,42 @@
-from lookup import lookup
-from threading import Thread
-from node_data import node_data
 from message import message
-from node_data import node
+from constants import *
 import zmq
+import socket
+
+# master_tracker as server to get requests from users.
 
 
-DOWNLOAD = "DOWNLOAD"
-UPLOAD = "UPLOAD"
-ALIVE = "ALIVE"
-
-node_tracker_ports = ["5000", "5002"]
-lookup_table = lookup()
+def master_tracker_clinet():
+    pass
 
 
-def filter():
-    lookup_table.filter()
+# master_tracker as subscriber.
+def master_tracker_subsciber():
+    pass
 
 
-def handle_message(msg):
-    if msg.message_type == DOWNLOAD:
-        pass
-    elif msg.message_type == UPLOAD:
-        pass
-    elif msg.message_type == ALIVE:
-        pass
+# node_keeper sends success to update the lookup table.
+def master_tracker_node_keeper():
+    pass
 
 
-def tracker_server_to_client(tracker_port):
+def main():
     context = zmq.Context()
     socket = context.socket(zmq.REP)
-    socket.bind("tcp://localhost:%s" % tracker_port)
+    socket.bind(f"tcp://{MASTER_TRACKER_IP}:{MASTER_CLIENT_REP}")
     while True:
-
-
-def tracker_server_to_node_tracker(tracker_port):
-    context = zmq.Context()
-    socket = context.socket(zmq.PUSH)  # Job Distributer
-    socket.bind("tcp://localhost:%s" % tracker_port)
-    while True:
-        msg = socket.recv_pyobj()
-        handle_message(msg)
-
-
-def tracker_server_from_node_tracker(tracker_port):
-    context = zmq.Context()
-    receiver = context.socket(zmq.PULL)
-    receiver.bind("tcp://localhost:%s" % tracker_port)
-    while True:
-        msg = receiver.recv_pyobj()
-        handle_message(msg)
+        try:
+            msg = socket.recv_pyobj()
+            print(msg.message_type)
+            if msg.message_type == UPLOAD_REQUEST:
+                # To be edited must send node ip
+                msg = message(UPLOAD_REQUEST, [
+                              master_tracker_ip, "3000"], master_tracker_ip, master_tracker_ports[0])
+                socket.send_pyobj(msg)
+                print(f"port:3000 sent")
+        except:
+            print("ERROR OCCURED")
 
 
 if __name__ == "__main__":
-    tracker_ports_to_client = ["1000", "1002"]
-    tracker_port_to_node_trackers = "1004"
-    tracker_port_from_node_trackers = "1006"
-
-    for port in tracker_ports_to_client:
-        Thread(target=tracker_server_to_client, args=(port,)).start()
+    main()

@@ -10,4 +10,3 @@ class node_data(object):
 
     def down_node(self):
         self.alive = False
-        self.videos.clear()
