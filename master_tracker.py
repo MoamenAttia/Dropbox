@@ -25,17 +25,14 @@ def main():
     socket = context.socket(zmq.REP)
     socket.bind(f"tcp://{MASTER_TRACKER_IP}:{MASTER_CLIENT_REP}")
     while True:
-        try:
-            msg = socket.recv_pyobj()
-            print(msg.message_type)
-            if msg.message_type == UPLOAD_REQUEST:
-                # To be edited must send node ip
-                msg = message(UPLOAD_REQUEST, [
-                              master_tracker_ip, "3000"], master_tracker_ip, master_tracker_ports[0])
-                socket.send_pyobj(msg)
-                print(f"port:3000 sent")
-        except:
-            print("ERROR OCCURED")
+        msg = socket.recv_pyobj()
+        
+        print(msg.message_type)
+        if msg.message_type == UPLOAD_REQUEST:
+            # To be edited must send node ip
+            msg = message(UPLOAD_REQUEST, [NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1], MASTER_TRACKER_IP, MASTER_CLIENT_REP)
+            socket.send_pyobj(msg)
+            print(f"port:3000 sent")
 
 
 if __name__ == "__main__":
