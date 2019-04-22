@@ -1,12 +1,7 @@
-from video import video
-
-
 class node_data(object):
-    def __init__(self, nodePorts, nodeIP):
+    def __init__(self, node_ip, node_ports):
         self.alive = True
-        self.nodePorts = nodePorts
-        self.nodeIP = nodeIP
+        self.nodePorts = node_ports
+        self.nodeIP = node_ip
         self.videos = []
-
-    def down_node(self):
-        self.alive = False
+        self.last_time = 0
