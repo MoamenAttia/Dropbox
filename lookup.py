@@ -1,5 +1,12 @@
 from node_data import node_data
 from constants import *
+import json
+
+from collections import OrderedDict
+
+
+def json_default(ordered_dict):
+    return ordered_dict.__dict__
 
 
 class lookup(object):
@@ -17,8 +24,10 @@ class lookup(object):
         for user in self.users_data:
             print(f"username:{user.username}, videos")
             for video in user.videos:
-                print(f"filename:{video.filename} nodeIPs:{video.node_ips}")
+                print(f"filename: {video.filename} nodeIPs: {video.node_ips} file_size: {video.file_size}")
         for node in self.nodes_data:
-            print(f"node_ip:{node.nodeIP}, alive:{node.alive} last_time:{node.last_time} node_ports:{node.nodePorts}")
-            for video in node.videos:
-                print(f"filename:{video.filename} nodeIPs:{video.node_ips}")
+            print(
+                f"node_ip: {node.nodeIP}, alive: {node.alive} last_time: {node.last_time} node_ports: {node.nodePorts}")
+
+    def __repr__(self):
+        return json.dumps(self, default=json_default, indent=4)

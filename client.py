@@ -3,11 +3,11 @@ import zmq
 from message import message
 from constants import *
 import socket
+import os
+from math import ceil
 
 client_ip = socket.gethostbyname(socket.gethostname())
 client_ports = ["2000", "2100"]
-
-chunksize = 10000
 
 
 def upload(username, filename):
@@ -32,8 +32,9 @@ def upload(username, filename):
     sender.recv_pyobj()  # Dummy Response
 
     with open(filename, "rb") as file:
-        data = file.read(chunksize)
-        print(data)
+        file_size = os.path.getsize(filename)
+        print(file_size)
+        data = file.read(CHUNK_SIZE)
         i = 1
         while data:
             msg = message(VIDEO, [username, filename, data])
@@ -41,10 +42,10 @@ def upload(username, filename):
             sender.send_pyobj(msg)
             sender.recv_pyobj()
             print(f"chunk {i} sent")
-            data = file.read(chunksize)
+            data = file.read(CHUNK_SIZE)
             i += 1
 
-    msg = message(VIDEO_DONE, [username, filename, node_ip, node_port])
+    msg = message(VIDEO_DONE, [username, filename, node_ip, file_size])
     sender.send_pyobj(msg)
     response = sender.recv_pyobj()
     print("File Uploaded")
@@ -67,34 +68,6 @@ def show_files(username):
             video_item.printVideo()
 
 
-downloaded_video = []
-
-
-#
-# def run_download(username, filename, ip, port, chunk_idx, num_threads):
-#     context = zmq.Context()
-#     socket = context.socket(zmq.REQ)
-#     socket.connect(f"tcp://{ip}:{port}")
-#     msg = message(DOWNLOAD_REQUEST, [username, filename, chunk_idx, num_threads])
-#     socket.send_pyobj(msg)
-#     response = socket.recv_pyobj()
-#
-#     numSrc = response.message_content
-#     msg = message(OK, OK)
-#     socket.send_pyobj(msg)
-#
-#     th_video = []
-#
-#     for i in range():
-#         vd = socket.recv_pyobj()
-#         th_video.append(vd.message_content)
-#         msg = message(OK, OK)
-#         socket.send_pyobj(msg)
-#
-#     res = socket.recv_pyobj()
-#     downloaded_video[chunk_idx] = th_video
-
-
 def download(username, filename):
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
@@ -104,22 +77,26 @@ def download(username, filename):
     # sending message to master tracker
     socket.send_pyobj(msg)
     print(f"Sending {DOWNLOAD_REQUEST} to master tracker")
+    node_ips, node_ip_port, file_size = socket.recv_pyobj().message_content
+    print(f"Got {node_ips} IPs and {node_ip_port} Ports, file_size: {file_size} bytes")
 
-    # node_ips, node_ip_port = socket.recv_pyobj().message_content
-    #
-    # threads = []
-    # for i in range(len(node_ips)):
-    #     threads.append(
-    #         Thread(target=run_download, args=(username, filename, node_ips[i], node_ip_port[i], i, len(node_ips),)))
-    #
-    # for thread in threads:
-    #     thread.start()
-    # for thread in threads:
-    #     thread.join()
-    #
-    # with open("A7oh.mp4", "wb") as file:
-    #     for chunk in downloaded_video:
-    #         file.write(chunk)
+    context = zmq.Context()
+    download_socket = context.socket(zmq.REQ)
+    download_socket.connect(f"tcp://{node_ips}:{node_ip_port}")
+
+    download_list_size = int(ceil(file_size / CHUNK_SIZE))
+    downloaded_video = [bytearray(0)] * download_list_size
+
+    for i in range(download_list_size):
+        msg = message(DOWNLOAD_PROCESS, [i, username, filename])
+        download_socket.send_pyobj(msg)
+        [chunk, data] = download_socket.recv_pyobj().message_content
+        downloaded_video[chunk] = data
+
+    print(VIDEO_DONE)
+    with open(f"{filename}", "wb") as file:
+        for data in downloaded_video:
+            file.write(data)
 
 
 def main():
@@ -132,7 +109,8 @@ def main():
         elif int(action) == 2:
             show_files(username)
         elif int(action) == 3:
-            pass
+            filename = input("Enter video name please: ")
+            download(username, filename)
         else:
             exit()
 
