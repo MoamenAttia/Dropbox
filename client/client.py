@@ -59,6 +59,25 @@ def show_files(username):
             video_item.printVideo()
 
 
+def download_threaded(username, filename, node_ip, node_port, downloaded_video, chunk):
+    context = zmq.Context()
+    download_socket = context.socket(zmq.REQ)
+    download_socket.connect(f"tcp://{node_ip}:{node_port}")
+    msg = message(DOWNLOAD_PROCESS, [chunk, username, filename])
+    download_socket.send_pyobj(msg)
+    [chunk, data] = download_socket.recv_pyobj().message_content
+    downloaded_video[chunk] = data
+
+
+def get_download_ip_port(list_ip_with_ports, visited):
+    for i in range(len(list_ip_with_ports)):
+        if not visited[i]:
+            return list_ip_with_ports[i][0], list_ip_with_ports[i][1]
+
+    shuffle(list_ip_with_ports)
+    return list_ip_with_ports[0][0], list_ip_with_ports[0][1]
+
+
 def download(username, filename):
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
@@ -68,21 +87,22 @@ def download(username, filename):
     # sending message to master tracker
     socket.send_pyobj(msg)
     print(f"Sending {DOWNLOAD_REQUEST} to master tracker")
-    node_ips, node_ip_port, file_size = socket.recv_pyobj().message_content
-    print(f"Got {node_ips} IPs and {node_ip_port} Ports, file_size: {file_size} bytes")
+    list_ip_with_ports, file_size = socket.recv_pyobj().message_content
 
-    context = zmq.Context()
-    download_socket = context.socket(zmq.REQ)
-    download_socket.connect(f"tcp://{node_ips}:{node_ip_port}")
-
+    download_threads = []
     download_list_size = int(ceil(file_size / CHUNK_SIZE))
     downloaded_video = [bytearray(0)] * download_list_size
-
+    visited = [False] * len(list_ip_with_ports)
     for i in range(download_list_size):
-        msg = message(DOWNLOAD_PROCESS, [i, username, filename])
-        download_socket.send_pyobj(msg)
-        [chunk, data] = download_socket.recv_pyobj().message_content
-        downloaded_video[chunk] = data
+        node_ip, node_port = get_download_ip_port(list_ip_with_ports, visited)
+        download_threads.append(
+            Thread(target=download_threaded, args=(username, filename, node_ip, node_port, downloaded_video, i)))
+
+    for thread in download_threads:
+        thread.start()
+
+    for thread in download_threads:
+        thread.join()
 
     print(VIDEO_DONE)
     with open(f"{filename}", "wb") as file:

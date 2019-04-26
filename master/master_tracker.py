@@ -35,27 +35,21 @@ def get_video_by_user_file(username, filename):
 def get_download_ports_with_file_size(username, filename):
     mutex.acquire()
     video_to_be_searched = get_video_by_user_file(username, filename)
-
+    list_ip_with_ports = []
     for node_keeper in video_to_be_searched.nodes:
         if is_alive(node_keeper.nodeIP, node_keeper.nodePorts[0]):
             if does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
-                mutex.release()
-                return [NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1, video_to_be_searched.file_size]
+                list_ip_with_ports.append((NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1))
             elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
-                mutex.release()
-                return [NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2, video_to_be_searched.file_size]
+                list_ip_with_ports.append((NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2))
             elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
-                mutex.release()
-                return [NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3, video_to_be_searched.file_size]
+                list_ip_with_ports.append((NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3))
             elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
-                mutex.release()
-                return [NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4, video_to_be_searched.file_size]
+                list_ip_with_ports.append((NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4))
             elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
-                mutex.release()
-                return [NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5, video_to_be_searched.file_size]
-
+                list_ip_with_ports.append((NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5))
     mutex.release()
-    return [None, None]
+    return list_ip_with_ports, video_to_be_searched.file_size
 
 
 def get_free_port():
@@ -121,9 +115,8 @@ def handle_message(msg):
     elif msg.message_type == DOWNLOAD_REQUEST:
         # To be edited must send node ip
         username, filename = msg.message_content.split()
-        node_keeper_ip, node_keeper_port, file_size = get_download_ports_with_file_size(username, filename)
-        print(f"ip:{node_keeper_ip}, port:{node_keeper_port} SENT, file_size: {file_size}")
-        return message(DOWNLOAD_REQUEST, [node_keeper_ip, node_keeper_port, file_size])
+        list_ip_with_ports, file_size = get_download_ports_with_file_size(username, filename)
+        return message(DOWNLOAD_REQUEST, [list_ip_with_ports, file_size])
     elif msg.message_type == UPLOAD_SUCCESS:
         for user in lookup_table.users_data:
             if user.username == msg.message_content[0]:
