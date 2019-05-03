@@ -124,6 +124,7 @@ def handle_message(msg):
                     video(f"{msg.message_content[0]}_{msg.message_content[1]}",
                           [get_node_by_ip_port(msg.message_content[2], msg.message_content[3])],
                           msg.message_content[4]))
+                save_users_data()
                 return message(OK, OK)
         print(lookup_table)
 
@@ -168,12 +169,32 @@ def master_tracker_node_keeper():
     socket = context.socket(zmq.REP)
     socket.bind(f"tcp://{MASTER_TRACKER_IP}:{MASTER_NODE_KEEPER_REP}")
     while True:
-        msg = socket.recv_pyobj()
-        reply = handle_message(msg)
-        socket.send_pyobj(reply)
+        try:
+            msg = socket.recv_pyobj()
+            reply = handle_message(msg)
+            socket.send_pyobj(reply)
+        except:
+            while True:
+                if not mutex.locked():
+                    exit()
+
+
+def save_users_data():
+    with open("master_db.db", "wb") as file:
+        pickle.dump(lookup_table.users_data, file)
+
+
+def load_users_data():
+    global lookup_table
+    file = Path("master_db.db")
+    if file.exists():
+        with open("master_db.db", "rb") as f:
+            lookup_table.users_data = pickle.load(f)
 
 
 def main():
+    load_users_data()
+    print(lookup_table)
     Thread(target=update_alive).start()
     Thread(target=master_tracker_client).start()
     Thread(target=master_tracker_subscriber).start()
