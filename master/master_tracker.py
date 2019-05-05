@@ -40,9 +40,11 @@ def get_video_by_user_file(username, filename):
 
 def get_download_ports_with_file_size(username, filename):
     video_to_be_searched = get_video_by_user_file(username, filename)
+    if video_to_be_searched is None:
+        return None, None
     list_ip_with_ports = []
     for node_keeper in video_to_be_searched.nodes:
-        if is_alive(node_keeper.node.nodeIP, node_keeper.node.nodePorts[0]):
+        if is_alive(node_keeper.node.nodeIP, node_keeper.node.nodePorts[0]) and not node_keeper.pending:
             list_ip_with_ports.append((node_keeper.node.nodeIP, node_keeper.node.nodePorts[0]))
             list_ip_with_ports.append((node_keeper.node.nodeIP, node_keeper.node.nodePorts[1]))
             list_ip_with_ports.append((node_keeper.node.nodeIP, node_keeper.node.nodePorts[2]))
@@ -208,11 +210,11 @@ def check_replication():
                     max_nodes = cnt
                     nodes = []
                     for temp_node in vid.nodes:
+                        if temp_node.node.alive and not temp_node.pending:
+                            node_to_send = temp_node.node
                         nodes.append(temp_node.node)
-                    for temp_node in nodes:
-                        if temp_node.alive:
-                            node_to_send = temp_node
-                        nodes_to_be_appended.append(rep_node_data(temp_node, False, int(time())))
+                        nodes_to_be_appended.append(temp_node)
+
                     for node in lookup_table.nodes_data:
                         if max_nodes >= 3:
                             break

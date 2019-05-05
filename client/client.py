@@ -19,6 +19,11 @@ def upload(username, filename):
         return
     sender.connect(f"tcp://{node_ip}:{node_port}")
 
+    f = Path(filename)
+    if not f.exists():
+        print("File does not exist")
+        return
+
     # send username , video filename.
     msg = message(VIDEO_NAME_REQUEST, [username, filename])
     sender.send_pyobj(msg)
@@ -92,6 +97,13 @@ def download(username, filename):
     print(f"Sending {DOWNLOAD_REQUEST} to master tracker")
     list_ip_with_ports, file_size = socket.recv_pyobj().message_content
     print(f"Got {list_ip_with_ports}")
+
+    if list_ip_with_ports is None:
+        print(f"No file with this name belongs to you in the database")
+        return
+    if len(list_ip_with_ports) == 0:
+        print(f"Sorry for that but the servers are down")
+        return
     download_threads = []
     download_list_size = min(6, len(list_ip_with_ports))
     downloaded_video = [bytearray(0)] * download_list_size
@@ -118,16 +130,21 @@ def download(username, filename):
 def main():
     username = input("Enter your username please: ")
     while True:
-        action = input("Enter an action:\n1:Upload\n2:Show files\n3:Download\n4:Exit\n")
-        if int(action) == 1:
+        try:
+            action = int(input("Enter an action:\n1:Upload\n2:Show files\n3:Download\n4:Exit\n"))
+        except:
+            print("please select correctly")
+            continue
+        if action == 1:
             filename = input("Enter video name please: ")
             upload(username, filename)
-        elif int(action) == 2:
+        elif action == 2:
             show_files(username)
-        elif int(action) == 3:
+        elif action == 3:
             filename = input("Enter video name please: ")
             download(username, filename)
         else:
+            print("no option selected we have to close ^)^))^$")
             exit()
 
 
