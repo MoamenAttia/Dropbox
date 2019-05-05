@@ -1,13 +1,13 @@
 import socket
 
 ################# IP ###############################
-MASTER_TRACKER_IP = socket.gethostbyname(socket.gethostname())
+MASTER_TRACKER_IP = "192.168.40.73"
 
-NODE_KEEPER_IP_1 = socket.gethostbyname(socket.gethostname())
-NODE_KEEPER_IP_2 = socket.gethostbyname(socket.gethostname())
-NODE_KEEPER_IP_3 = socket.gethostbyname(socket.gethostname())
-NODE_KEEPER_IP_4 = socket.gethostbyname(socket.gethostname())
-NODE_KEEPER_IP_5 = socket.gethostbyname(socket.gethostname())
+NODE_KEEPER_IP_1 = "192.168.40.73"
+NODE_KEEPER_IP_2 = "192.168.40.73"
+NODE_KEEPER_IP_3 = "192.168.40.73"
+NODE_KEEPER_IP_4 = "192.168.40.73"
+NODE_KEEPER_IP_5 = "192.168.40.73"
 
 ################# MASTER PORTS #########################
 MASTER_CLIENT_REP = "3000"  # to get clients' requests
@@ -57,3 +57,5 @@ SHOW_FILES = "SHOW_FILES"
 DOWNLOAD_PROCESS = "DOWNLOAD_PROCESS"
 
 CHUNK_SIZE = 1000000
+
+REPLICATION_REQUEST = "REPLICATION_REQUEST"

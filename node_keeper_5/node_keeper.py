@@ -22,7 +22,41 @@ def append_file(msg):
         file.write(data)
 
 
+def replicate(node_ip, node_port, filename):
+    sender_context = zmq.Context()
+    sender = sender_context.socket(zmq.REQ)
+    sender.connect(f"tcp://{node_ip}:{node_port}")
+    username, filename = filename.split("_")
+
+    # send username , video filename.
+    msg = message(VIDEO_NAME_REQUEST, [username, filename])
+    sender.send_pyobj(msg)
+    print(f"SENDING {VIDEO_NAME_REQUEST} to node_tracker port {node_port}")
+    sender.recv_pyobj()  # Dummy Response
+
+    filename = f"{username}_{filename}"
+    with open(filename, "rb") as file:
+        file_size = os.path.getsize(filename)
+        print(file_size)
+        data = file.read(CHUNK_SIZE)
+        i = 1
+        while data:
+            msg = message(VIDEO, [username, filename, data])
+            print(f"sending {i} chunk")
+            sender.send_pyobj(msg)
+            sender.recv_pyobj()
+            print(f"chunk {i} sent")
+            data = file.read(CHUNK_SIZE)
+            i += 1
+
+    msg = message(VIDEO_DONE, [username, filename, node_ip, node_port, file_size])
+    sender.send_pyobj(msg)
+    response = sender.recv_pyobj()
+    print("File Uploaded")
+
+
 def handle_message(msg, success_socket):
+    print("Iam Receiving now", msg.message_type)
     if msg.message_type == VIDEO_NAME_REQUEST:
         create_file(msg)
         return message(OK, OK)
@@ -39,12 +73,19 @@ def handle_message(msg, success_socket):
         chunk, username, filename = msg.message_content
         data = read_chunk(chunk, username, filename)
         return message(DOWNLOAD_PROCESS, [chunk, data])
+    elif msg.message_type == REPLICATION_REQUEST:
+        ip_ports = msg.message_content[0]
+        filename = msg.message_content[1]
+        for ip_port in ip_ports:
+            Thread(target=replicate, args=(ip_port[0], ip_port[1], filename,)).start()
+
+        return message(OK, OK)
 
 
 def node_keeper_publisher(node_keeper_ip, node_keeper_port):
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
-    socket.bind(f"tcp://{node_keeper_ip}:{node_keeper_port}")
+    socket.bind(f"tcp://*:{node_keeper_port}")
     print(f"{node_keeper_ip}, {node_keeper_port}")
     filter_top = "10000"
     while True:
@@ -55,7 +96,7 @@ def node_keeper_publisher(node_keeper_ip, node_keeper_port):
 def node_keeper_client(node_ip, node_port):
     context = zmq.Context()
     socket = context.socket(zmq.REP)
-    socket.bind(f"tcp://{node_ip}:{node_port}")
+    socket.bind(f"tcp://*:{node_port}")
 
     # Socket to send success message to master to update lookup table
     success_socket = zmq.Context().socket(zmq.REQ)
