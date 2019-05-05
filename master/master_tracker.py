@@ -38,16 +38,16 @@ def get_download_ports_with_file_size(username, filename):
     video_to_be_searched = get_video_by_user_file(username, filename)
     list_ip_with_ports = []
     for node_keeper in video_to_be_searched.nodes:
-        if is_alive(node_keeper['node'].nodeIP, node_keeper['node'].nodePorts[0]):
-            if does_node_have_ip_have_port(node_keeper['node'], NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
+        if is_alive(node_keeper.node.nodeIP, node_keeper.node.nodePorts[0]):
+            if does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
                 list_ip_with_ports.append((NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1))
-            elif does_node_have_ip_have_port(node_keeper['node'], NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
+            elif does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
                 list_ip_with_ports.append((NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2))
-            elif does_node_have_ip_have_port(node_keeper['node'], NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
+            elif does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
                 list_ip_with_ports.append((NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3))
-            elif does_node_have_ip_have_port(node_keeper['node'], NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
+            elif does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
                 list_ip_with_ports.append((NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4))
-            elif does_node_have_ip_have_port(node_keeper['node'], NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
+            elif does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
                 list_ip_with_ports.append((NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5))
     return list_ip_with_ports, video_to_be_searched.file_size
 
@@ -116,16 +116,19 @@ def handle_message(msg):
             if user.username == msg.message_content[0]:
                 vid = get_video_by_user_file(msg.message_content[0], msg.message_content[1])
                 if vid is None:
+                    nodes = list()
+                    nodes.append(
+                        rep_node_data(get_node_by_ip_port(msg.message_content[2], msg.message_content[3]), False, 0))
+                    print(nodes)
+
                     user.videos.append(
                         video(f"{msg.message_content[1]}",
-                              [{"node": get_node_by_ip_port(msg.message_content[2], msg.message_content[3]),
-                                "pending": False,
-                                }],
+                              nodes,
                               msg.message_content[4]))
                 else:
                     for node in vid.nodes:
-                        if does_node_have_ip_have_port(node['node'], msg.message_content[2], msg.message_content[3]):
-                            node['pending'] = False
+                        if does_node_have_ip_have_port(node.node, msg.message_content[2], msg.message_content[3]):
+                            node.pending = False
                 save_users_data()
                 return message(OK, OK)
 
@@ -203,39 +206,40 @@ def check_replication():
                 ip_ports = []
                 nodes_to_be_appended = []
                 cnt = 0
+                vid.nodes = list(vid.nodes)
                 for item in vid.nodes:
                     cnt += 1
-                if cnt < 3:
+                if cnt < 3 and cnt != 0:
                     node_to_send = None
                     max_nodes = cnt
                     nodes = []
                     for temp_node in vid.nodes:
-                        nodes.append(temp_node['node'])
+                        nodes.append(temp_node.node)
                     for temp_node in nodes:
                         node_to_send = temp_node
-                        nodes_to_be_appended.append({'node': temp_node, 'pending': False})
+                        nodes_to_be_appended.append(rep_node_data(temp_node, False, int(time())))
                     for node in lookup_table.nodes_data:
                         if max_nodes >= 3:
                             break
                         if node.alive and node not in nodes:
                             if does_node_have_ip_have_port(node, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
-                                nodes_to_be_appended.append({'node': node, 'pending': True, 'from': int(time())})
+                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
                                 max_nodes += 1
                                 ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_1])
                             elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
-                                nodes_to_be_appended.append({'node': node, 'pending': True, 'from': int(time())})
+                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
                                 max_nodes += 1
                                 ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_2])
                             elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
-                                nodes_to_be_appended.append({'node': node, 'pending': True, 'from': int(time())})
+                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
                                 max_nodes += 1
                                 ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_3])
                             elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
-                                nodes_to_be_appended.append({'node': node, 'pending': True, 'from': int(time())})
+                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
                                 max_nodes += 1
                                 ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_4])
                             elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
-                                nodes_to_be_appended.append({'node': node, 'pending': True, 'from': int(time())})
+                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
                                 max_nodes += 1
                                 ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_5])
 
@@ -254,30 +258,26 @@ def check_replication():
                         elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
                             socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_5}")
 
+                        vid.nodes = nodes_to_be_appended
+                        save_users_data()
+
                         msg = message(REPLICATION_REQUEST, [ip_ports, user.username, vid.filename])
                         print(f"message content : {msg.message_content}")
                         socket.send_pyobj(msg)
                         response = socket.recv_pyobj()
                         print(f"message content : response from replication {response.message_type}")
-                        vid.nodes = nodes_to_be_appended
-                        save_users_data()
+
         mutex.release()
         sleep(2)
 
 
-def filter_false_records(node):
-    if node['pending']:
-        if int(time()) - node['from'] >= 60:
-            return False
-        else:
-            return True
-
-
 def delete_false_records():
     while True:
+        mutex.acquire()
         for user in lookup_table.users_data:
             for vid in user.videos:
-                vid.nodes = filter(filter_false_records, vid.nodes)
+                vid.nodes = [i for i in vid.nodes if (not i.pending) or (i.pending and int(time()) - i.fromTime <= 60)]
+        mutex.release()
         sleep(10)
 
 
