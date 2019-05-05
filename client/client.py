@@ -62,11 +62,11 @@ def show_files(username):
             video_item.printVideo()
 
 
-def download_threaded(username, filename, node_ip, node_port, downloaded_video, chunk):
+def download_threaded(username, filename, node_ip, node_port, downloaded_video, chunk, chunk_size):
     context = zmq.Context()
     download_socket = context.socket(zmq.REQ)
     download_socket.connect(f"tcp://{node_ip}:{node_port}")
-    msg = message(DOWNLOAD_PROCESS, [chunk, username, filename])
+    msg = message(DOWNLOAD_PROCESS, [chunk, username, filename, chunk_size])
     download_socket.send_pyobj(msg)
     [chunk, data] = download_socket.recv_pyobj().message_content
     downloaded_video[chunk] = data
@@ -93,13 +93,15 @@ def download(username, filename):
     list_ip_with_ports, file_size = socket.recv_pyobj().message_content
     print(f"Got {list_ip_with_ports}")
     download_threads = []
-    download_list_size = int(ceil(file_size / CHUNK_SIZE))
+    download_list_size = min(6, len(list_ip_with_ports))
     downloaded_video = [bytearray(0)] * download_list_size
     visited = [False] * len(list_ip_with_ports)
     for i in range(download_list_size):
         node_ip, node_port = get_download_ip_port(list_ip_with_ports, visited)
         download_threads.append(
-            Thread(target=download_threaded, args=(username, filename, node_ip, node_port, downloaded_video, i)))
+            Thread(target=download_threaded,
+                   args=(username, filename, node_ip,
+                         node_port, downloaded_video, i, ceil(file_size / download_list_size))))
 
     for thread in download_threads:
         thread.start()
@@ -116,7 +118,7 @@ def download(username, filename):
 def main():
     username = input("Enter your username please: ")
     while True:
-        action = input("Enter an action:\n1:Upload\n2:Showfiles\n3:Download\n4:Exit\n")
+        action = input("Enter an action:\n1:Upload\n2:Show files\n3:Download\n4:Exit\n")
         if int(action) == 1:
             filename = input("Enter video name please: ")
             upload(username, filename)

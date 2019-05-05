@@ -1,12 +1,12 @@
 from libraries import *
 
 
-def read_chunk(chunk, username, filename):
-    read_from = chunk * CHUNK_SIZE
+def read_chunk(chunk, username, filename, new_chunk):
+    read_from = chunk * new_chunk
 
     with open(f"{username}_{filename}", "rb") as file:
         file.seek(read_from, os.SEEK_SET)
-        return file.read(CHUNK_SIZE)
+        return file.read(new_chunk)
 
 
 def create_file(msg):
@@ -73,8 +73,8 @@ def handle_message(msg, success_socket):
         return message(OK, OK)
     elif msg.message_type == DOWNLOAD_PROCESS:
         print(f"I am receiving request {DOWNLOAD_PROCESS} request")
-        chunk, username, filename = msg.message_content
-        data = read_chunk(chunk, username, filename)
+        chunk, username, filename, chunk_size = msg.message_content
+        data = read_chunk(chunk, username, filename, chunk_size)
         return message(DOWNLOAD_PROCESS, [chunk, data])
     elif msg.message_type == REPLICATION_REQUEST:
         print(f"I am receiving request {REPLICATION_REQUEST} request")
