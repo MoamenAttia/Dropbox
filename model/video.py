@@ -7,4 +7,4 @@ class video(object):
     def printVideo(self):
         print(f"video filename:{self.filename} video IPs")
         for node in self.nodes:
-            print(f"node_ip: {node['node'].nodeIP},from: {node['from']}")
+            print(f"node_ip: {node.node.nodeIP},node_ports: {node.node.node_ports}")

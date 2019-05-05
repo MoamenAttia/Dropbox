@@ -207,8 +207,11 @@ def check_replication():
                 nodes_to_be_appended = []
                 cnt = 0
                 vid.nodes = list(vid.nodes)
+
                 for item in vid.nodes:
-                    cnt += 1
+                    if item.node.alive:
+                        cnt += 1
+
                 if cnt < 3 and cnt != 0:
                     node_to_send = None
                     max_nodes = cnt
@@ -216,7 +219,8 @@ def check_replication():
                     for temp_node in vid.nodes:
                         nodes.append(temp_node.node)
                     for temp_node in nodes:
-                        node_to_send = temp_node
+                        if temp_node.alive:
+                            node_to_send = temp_node
                         nodes_to_be_appended.append(rep_node_data(temp_node, False, int(time())))
                     for node in lookup_table.nodes_data:
                         if max_nodes >= 3:
@@ -247,6 +251,7 @@ def check_replication():
                         context = zmq.Context()
                         socket = context.socket(zmq.REQ)
                         node = node_to_send
+                        node.printInfo()
                         if does_node_have_ip_have_port(node, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
                             socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_1}")
                         elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):

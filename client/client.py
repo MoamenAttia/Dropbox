@@ -91,7 +91,7 @@ def download(username, filename):
     socket.send_pyobj(msg)
     print(f"Sending {DOWNLOAD_REQUEST} to master tracker")
     list_ip_with_ports, file_size = socket.recv_pyobj().message_content
-
+    print(f"Got {list_ip_with_ports}")
     download_threads = []
     download_list_size = int(ceil(file_size / CHUNK_SIZE))
     downloaded_video = [bytearray(0)] * download_list_size
