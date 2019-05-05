@@ -26,17 +26,15 @@ def is_alive(ip, port):
 
 
 def get_video_by_user_file(username, filename):
-    video_name = f"{username}_{filename}"
     for user in lookup_table.users_data:
         if user.username == username:
             for vid in user.videos:
-                if vid.filename == video_name:
+                if vid.filename == filename:
                     return vid
     return None
 
 
 def get_download_ports_with_file_size(username, filename):
-    mutex.acquire()
     video_to_be_searched = get_video_by_user_file(username, filename)
     list_ip_with_ports = []
     for node_keeper in video_to_be_searched.nodes:
@@ -51,31 +49,23 @@ def get_download_ports_with_file_size(username, filename):
                 list_ip_with_ports.append((NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4))
             elif does_node_have_ip_have_port(node_keeper['node'], NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
                 list_ip_with_ports.append((NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5))
-    mutex.release()
     return list_ip_with_ports, video_to_be_searched.file_size
 
 
 def get_free_port():
-    mutex.acquire()
     shuffle(lookup_table.nodes_data)
     for node_keeper in lookup_table.nodes_data:
         if node_keeper.alive:
             if does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
-                mutex.release()
                 return [NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1]
             elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
-                mutex.release()
                 return [NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2]
             elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
-                mutex.release()
                 return [NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3]
             elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
-                mutex.release()
                 return [NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4]
             elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
-                mutex.release()
                 return [NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5]
-    mutex.release()
     print("Returned NULL PORT")
     return [None, None]
 
@@ -90,6 +80,7 @@ def update_alive():
             else:
                 node_keeper.alive = False
         mutex.release()
+        sleep(1)
 
 
 def handle_message(msg):
@@ -125,21 +116,18 @@ def handle_message(msg):
             if user.username == msg.message_content[0]:
                 vid = get_video_by_user_file(msg.message_content[0], msg.message_content[1])
                 if vid is None:
-                    mutex.acquire()
                     user.videos.append(
-                        video(f"{msg.message_content[0]}_{msg.message_content[1]}",
+                        video(f"{msg.message_content[1]}",
                               [{"node": get_node_by_ip_port(msg.message_content[2], msg.message_content[3]),
                                 "pending": False,
                                 }],
                               msg.message_content[4]))
-                    mutex.release()
                 else:
                     for node in vid.nodes:
                         if does_node_have_ip_have_port(node['node'], msg.message_content[2], msg.message_content[3]):
                             node['pending'] = False
                 save_users_data()
                 return message(OK, OK)
-        print(lookup_table)
 
 
 # master_tracker as server to get requests from users
@@ -149,7 +137,9 @@ def master_tracker_client():
     socket.bind(f"tcp://*:{MASTER_CLIENT_REP}")
     while True:
         msg = socket.recv_pyobj()
+        mutex.acquire()
         reply = handle_message(msg)
+        mutex.release()
         socket.send_pyobj(reply)
 
 
@@ -171,9 +161,11 @@ def master_tracker_subscriber():
         msg = socket.recv_string()
         node_keeper_ip = msg.split()[1]
         node_keeper_port = msg.split()[2]
+        mutex.acquire()
         for node_keeper in lookup_table.nodes_data:
             if node_keeper.nodeIP == node_keeper_ip and node_keeper_port in node_keeper.nodePorts:
                 node_keeper.last_time = int(time())
+        mutex.release()
 
 
 # node_keeper sends success to update the lookup table.
@@ -182,14 +174,11 @@ def master_tracker_node_keeper():
     socket = context.socket(zmq.REP)
     socket.bind(f"tcp://*:{MASTER_NODE_KEEPER_REP}")
     while True:
-        try:
-            msg = socket.recv_pyobj()
-            reply = handle_message(msg)
-            socket.send_pyobj(reply)
-        except:
-            while True:
-                if not mutex.locked():
-                    exit()
+        msg = socket.recv_pyobj()
+        mutex.acquire()
+        reply = handle_message(msg)
+        mutex.release()
+        socket.send_pyobj(reply)
 
 
 def save_users_data():
@@ -208,6 +197,7 @@ def load_users_data():
 
 def check_replication():
     while True:
+        mutex.acquire()
         for user in lookup_table.users_data:
             for vid in user.videos:
                 ip_ports = []
@@ -215,7 +205,7 @@ def check_replication():
                 cnt = 0
                 for item in vid.nodes:
                     cnt += 1
-                if cnt < 2:
+                if cnt < 3:
                     node_to_send = None
                     max_nodes = cnt
                     nodes = []
@@ -248,26 +238,30 @@ def check_replication():
                                 nodes_to_be_appended.append({'node': node, 'pending': True, 'from': int(time())})
                                 max_nodes += 1
                                 ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_5])
-                    context = zmq.Context()
-                    socket = context.socket(zmq.REQ)
-                    node = node_to_send
-                    if does_node_have_ip_have_port(node, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
-                        socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_1}")
-                    elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
-                        socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_2}")
-                    elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
-                        socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_3}")
-                    elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
-                        socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_4}")
-                    elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
-                        socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_5}")
 
-                    msg = message(REPLICATION_REQUEST, [ip_ports, vid.filename])
-                    socket.send_pyobj(msg)
-                    response = socket.recv_pyobj()
-                    print(response.message_type)
-                    vid.nodes = nodes_to_be_appended
-                    save_users_data()
+                    if len(ip_ports) > 0:
+                        context = zmq.Context()
+                        socket = context.socket(zmq.REQ)
+                        node = node_to_send
+                        if does_node_have_ip_have_port(node, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
+                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_1}")
+                        elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
+                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_2}")
+                        elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
+                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_3}")
+                        elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
+                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_4}")
+                        elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
+                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_5}")
+
+                        msg = message(REPLICATION_REQUEST, [ip_ports, user.username, vid.filename])
+                        print(f"message content : {msg.message_content}")
+                        socket.send_pyobj(msg)
+                        response = socket.recv_pyobj()
+                        print(f"message content : response from replication {response.message_type}")
+                        vid.nodes = nodes_to_be_appended
+                        save_users_data()
+        mutex.release()
         sleep(2)
 
 
@@ -284,7 +278,7 @@ def delete_false_records():
         for user in lookup_table.users_data:
             for vid in user.videos:
                 vid.nodes = filter(filter_false_records, vid.nodes)
-        sleep(70)
+        sleep(10)
 
 
 def main():

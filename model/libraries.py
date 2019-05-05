@@ -16,3 +16,4 @@ from time import sleep, time
 from random import shuffle
 import pickle
 from multiprocessing import Process
+from rep_node_data import *

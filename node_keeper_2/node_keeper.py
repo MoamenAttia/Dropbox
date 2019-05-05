@@ -21,24 +21,20 @@ def append_file(msg):
         file.write(data)
 
 
-def replicate(node_ip, node_port, filename):
+def replicate(node_ip, node_port, username, filename):
     sender_context = zmq.Context()
     sender = sender_context.socket(zmq.REQ)
     sender.connect(f"tcp://{node_ip}:{node_port}")
-    A7A = filename.split("_")
-    print(A7A)
-
-    username, filename = filename.split("_")
-    print(username, filename)
+    print(filename)
     # send username , video filename.
     msg = message(VIDEO_NAME_REQUEST, [username, filename])
     sender.send_pyobj(msg)
     print(f"SENDING {VIDEO_NAME_REQUEST} to node_tracker port {node_port} with data {msg.message_content}")
     sender.recv_pyobj()  # Dummy Response
 
-    filename = f"{username}_{filename}"
-    with open(filename, "rb") as file:
-        file_size = os.path.getsize(filename)
+    username_filename = f"{username}_{filename}"
+    with open(username_filename , "rb") as file:
+        file_size = os.path.getsize(username_filename )
         print(file_size)
         data = file.read(CHUNK_SIZE)
         i = 1
@@ -77,9 +73,11 @@ def handle_message(msg, success_socket):
         return message(DOWNLOAD_PROCESS, [chunk, data])
     elif msg.message_type == REPLICATION_REQUEST:
         ip_ports = msg.message_content[0]
-        filename = msg.message_content[1]
+        username = msg.message_content[1]
+        filename = msg.message_content[2]
+        print(f"Iam received {ip_ports} , {filename}")
         for ip_port in ip_ports:
-            Thread(target=replicate, args=(ip_port[0], ip_port[1], filename,)).start()
+            Thread(target=replicate, args=(ip_port[0], ip_port[1], username, filename,)).start()
 
         return message(OK, OK)
 
@@ -88,7 +86,6 @@ def node_keeper_publisher(node_keeper_ip, node_keeper_port):
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
     socket.bind(f"tcp://*:{node_keeper_port}")
-    print(f"{node_keeper_ip}, {node_keeper_port}")
     filter_top = "10000"
     while True:
         socket.send_string(f"{filter_top} {node_keeper_ip} {node_keeper_port}")
@@ -111,6 +108,7 @@ def node_keeper_client(node_ip, node_port):
 
 
 def main():
+    print(f"node ip:{NODE_KEEPER_IP_2}, node ports:{NODE_KEEPER_CLIENT_REP_2, NODE_KEEPER_MASTER_PUB_2}")
     Thread(target=node_keeper_client, args=(NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2,)).start()
     Thread(target=node_keeper_publisher, args=(NODE_KEEPER_IP_2, NODE_KEEPER_MASTER_PUB_2,)).start()
 
