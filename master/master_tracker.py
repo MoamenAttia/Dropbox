@@ -3,6 +3,9 @@ from libraries import *
 lookup_table = lookup()
 mutex = Lock()
 
+sub_context = zmq.Context()
+sub_socket = sub_context.socket(zmq.SUB)
+
 
 def does_node_have_ip_have_port(node, node_ip, node_port):
     if node is None:
@@ -16,6 +19,7 @@ def get_node_by_ip_port(node_ip, node_port):
     for node_keeper in lookup_table.nodes_data:
         if node_keeper.nodeIP == node_ip and node_port in node_keeper.nodePorts:
             return node_keeper
+    return None
 
 
 def is_alive(ip, port):
@@ -39,16 +43,9 @@ def get_download_ports_with_file_size(username, filename):
     list_ip_with_ports = []
     for node_keeper in video_to_be_searched.nodes:
         if is_alive(node_keeper.node.nodeIP, node_keeper.node.nodePorts[0]):
-            if does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
-                list_ip_with_ports.append((NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1))
-            elif does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
-                list_ip_with_ports.append((NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2))
-            elif does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
-                list_ip_with_ports.append((NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3))
-            elif does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
-                list_ip_with_ports.append((NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4))
-            elif does_node_have_ip_have_port(node_keeper.node, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
-                list_ip_with_ports.append((NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5))
+            list_ip_with_ports.append((node_keeper.node.nodeIP, node_keeper.node.nodePorts[0]))
+            list_ip_with_ports.append((node_keeper.node.nodeIP, node_keeper.node.nodePorts[1]))
+            list_ip_with_ports.append((node_keeper.node.nodeIP, node_keeper.node.nodePorts[2]))
     return list_ip_with_ports, video_to_be_searched.file_size
 
 
@@ -56,16 +53,8 @@ def get_free_port():
     shuffle(lookup_table.nodes_data)
     for node_keeper in lookup_table.nodes_data:
         if node_keeper.alive:
-            if does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
-                return [NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1]
-            elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
-                return [NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2]
-            elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
-                return [NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3]
-            elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
-                return [NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4]
-            elif does_node_have_ip_have_port(node_keeper, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
-                return [NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5]
+            shuffled_ports = [node_keeper.nodePorts[7], node_keeper.nodePorts[8], node_keeper.nodePorts[9]]
+            return [node_keeper.nodeIP, shuffled_ports[0]]
     print("Returned NULL PORT")
     return [None, None]
 
@@ -119,8 +108,6 @@ def handle_message(msg):
                     nodes = list()
                     nodes.append(
                         rep_node_data(get_node_by_ip_port(msg.message_content[2], msg.message_content[3]), False, 0))
-                    print(nodes)
-
                     user.videos.append(
                         video(f"{msg.message_content[1]}",
                               nodes,
@@ -131,6 +118,16 @@ def handle_message(msg):
                             node.pending = False
                 save_users_data()
                 return message(OK, OK)
+    elif msg.message_type == NEW_NODE:
+        node_ip = msg.message_content[0]
+        node_ports = msg.message_content[1]
+        print(f"{NEW_NODE} REQUEST ip: {node_ip} ports: {node_ports}")
+        if get_node_by_ip_port(node_ip, node_ports[0]) is None:
+            lookup_table.nodes_data.append(node_data(node_ip, node_ports))
+            sub_socket.connect(f"tcp://{node_ip}:{node_ports[6]}")
+            print(f"{NEW_NODE} Added to Lookup table")
+            save_users_data()
+        return message(OK, OK)
 
 
 # master_tracker as server to get requests from users
@@ -148,25 +145,15 @@ def master_tracker_client():
 
 # master_tracker as subscriber.
 def master_tracker_subscriber():
-    context = zmq.Context()
-    socket = context.socket(zmq.SUB)
-
-    socket.connect(f"tcp://{NODE_KEEPER_IP_1}:{NODE_KEEPER_MASTER_PUB_1}")
-    socket.connect(f"tcp://{NODE_KEEPER_IP_2}:{NODE_KEEPER_MASTER_PUB_2}")
-    socket.connect(f"tcp://{NODE_KEEPER_IP_3}:{NODE_KEEPER_MASTER_PUB_3}")
-    socket.connect(f"tcp://{NODE_KEEPER_IP_4}:{NODE_KEEPER_MASTER_PUB_4}")
-    socket.connect(f"tcp://{NODE_KEEPER_IP_5}:{NODE_KEEPER_MASTER_PUB_5}")
-
     filter_top = "10000"
-    socket.setsockopt_string(zmq.SUBSCRIBE, filter_top)
-
+    sub_socket.setsockopt_string(zmq.SUBSCRIBE, filter_top)
     while True:
-        msg = socket.recv_string()
+        msg = sub_socket.recv_string()
         node_keeper_ip = msg.split()[1]
         node_keeper_port = msg.split()[2]
         mutex.acquire()
         for node_keeper in lookup_table.nodes_data:
-            if node_keeper.nodeIP == node_keeper_ip and node_keeper_port in node_keeper.nodePorts:
+            if does_node_have_ip_have_port(node_keeper, node_keeper_ip, node_keeper_port):
                 node_keeper.last_time = int(time())
         mutex.release()
 
@@ -185,9 +172,8 @@ def master_tracker_node_keeper():
 
 
 def save_users_data():
-    pass
-    # with open("master_db.db", "wb") as file:
-    #     pickle.dump(lookup_table.users_data, file)
+    with open("master_db.db", "wb") as file:
+        pickle.dump(lookup_table, file)
 
 
 def load_users_data():
@@ -195,7 +181,12 @@ def load_users_data():
     file = Path("master_db.db")
     if file.exists():
         with open("master_db.db", "rb") as f:
-            lookup_table.users_data = pickle.load(f)
+            lookup_table = pickle.load(f)
+            for node in lookup_table.nodes_data:
+                sub_socket.connect(f"tcp://{node.nodeIP}:{node.nodePorts[6]}")
+    else:
+        lookup_table = lookup()
+    print(lookup_table)
 
 
 def check_replication():
@@ -226,46 +217,22 @@ def check_replication():
                         if max_nodes >= 3:
                             break
                         if node.alive and node not in nodes:
-                            if does_node_have_ip_have_port(node, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
-                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
-                                max_nodes += 1
-                                ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_1])
-                            elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
-                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
-                                max_nodes += 1
-                                ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_2])
-                            elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
-                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
-                                max_nodes += 1
-                                ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_3])
-                            elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
-                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
-                                max_nodes += 1
-                                ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_4])
-                            elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
-                                nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
-                                max_nodes += 1
-                                ip_ports.append([node.nodeIP, NODE_KEEPER_CLIENT_REP_5])
+                            nodes_to_be_appended.append(rep_node_data(node, True, int(time())))
+                            max_nodes += 1
+                            replication_ports = [node.nodePorts[3], node.nodePorts[4], node.nodePorts[5]]
+                            shuffle(replication_ports)
+                            ip_ports.append([node.nodeIP, replication_ports[0]])
 
                     if len(ip_ports) > 0:
                         context = zmq.Context()
                         socket = context.socket(zmq.REQ)
                         node = node_to_send
                         node.printInfo()
-                        if does_node_have_ip_have_port(node, NODE_KEEPER_IP_1, NODE_KEEPER_CLIENT_REP_1):
-                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_1}")
-                        elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_2, NODE_KEEPER_CLIENT_REP_2):
-                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_2}")
-                        elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3):
-                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_3}")
-                        elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_4, NODE_KEEPER_CLIENT_REP_4):
-                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_4}")
-                        elif does_node_have_ip_have_port(node, NODE_KEEPER_IP_5, NODE_KEEPER_CLIENT_REP_5):
-                            socket.connect(f"tcp://{node.nodeIP}:{NODE_KEEPER_CLIENT_REP_5}")
-
+                        replication_ports = [node.nodePorts[3], node.nodePorts[4], node.nodePorts[5]]
+                        shuffle(replication_ports)
+                        socket.connect(f"tcp://{node.nodeIP}:{replication_ports[0]}")
                         vid.nodes = nodes_to_be_appended
                         save_users_data()
-
                         msg = message(REPLICATION_REQUEST, [ip_ports, user.username, vid.filename])
                         print(f"message content : {msg.message_content}")
                         socket.send_pyobj(msg)
@@ -286,8 +253,19 @@ def delete_false_records():
         sleep(10)
 
 
+def welcome():
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind(f"tcp://*:{MASTER_WELCOME_PORT}")
+    while True:
+        msg = socket.recv_pyobj()
+        reply = handle_message(msg)
+        socket.send_pyobj(reply)
+
+
 def main():
     load_users_data()
+    Thread(target=welcome).start()
     Thread(target=update_alive).start()
     Thread(target=master_tracker_client).start()
     Thread(target=master_tracker_subscriber).start()

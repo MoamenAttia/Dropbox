@@ -113,10 +113,54 @@ def node_keeper_client(node_ip, node_port):
         socket.send_pyobj(reply)
 
 
+def welcome(node_ip, node_ports):
+    context = zmq.Context()
+    socket = context.socket(zmq.REQ)
+    socket.connect(f"tcp://{MASTER_TRACKER_IP}:{MASTER_WELCOME_PORT}")
+    msg = message(NEW_NODE, [node_ip, node_ports])
+    # sending message to master tracker
+    socket.send_pyobj(msg)
+    print(f"Sending {NEW_NODE} to master tracker")
+    res = socket.recv_pyobj()
+    print(res.message_type)
+
+
+def node_keeper_replicate(node_ip, node_port):
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind(f"tcp://*:{node_port}")
+
+    # Socket to send success message to master to update lookup table
+    success_socket = zmq.Context().socket(zmq.REQ)
+    success_socket.connect(f"tcp://{MASTER_TRACKER_IP}:{MASTER_NODE_KEEPER_REP}")
+
+    while True:
+        msg = socket.recv_pyobj()
+        reply = handle_message(msg, success_socket)
+        print(f"{reply.message_type} sent back")
+        socket.send_pyobj(reply)
+
+
 def main():
-    print(f"node ip:{NODE_KEEPER_IP_3}, node ports:{NODE_KEEPER_CLIENT_REP_3, NODE_KEEPER_MASTER_PUB_3}")
-    Thread(target=node_keeper_client, args=(NODE_KEEPER_IP_3, NODE_KEEPER_CLIENT_REP_3,)).start()
-    Thread(target=node_keeper_publisher, args=(NODE_KEEPER_IP_3, NODE_KEEPER_MASTER_PUB_3,)).start()
+    node_ip = NODE_KEEPER_IP_1
+    download_ports = ["7000", "7002", "7004"]
+    replicate_ports = ["7100", "7102", "7104"]
+    upload_ports = ["7200", "7202", "7204"]
+    publisher_port = "7300"
+    node_ports = download_ports + replicate_ports + [publisher_port] + upload_ports
+    print(f"node ip:{node_ip}, node ports:{node_ports}")
+    welcome(node_ip, node_ports)
+    print("node keeper added to the lookup table")
+    for port in download_ports:
+        Thread(target=node_keeper_client, args=(node_ip, port,)).start()
+
+    for port in upload_ports:
+        Thread(target=node_keeper_client, args=(node_ip, port,)).start()
+
+    for port in replicate_ports:
+        Thread(target=node_keeper_replicate, args=(node_ip, port,)).start()
+
+    Thread(target=node_keeper_publisher, args=(node_ip, publisher_port,)).start()
 
 
 if __name__ == "__main__":
