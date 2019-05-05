@@ -33,8 +33,8 @@ def replicate(node_ip, node_port, username, filename):
     sender.recv_pyobj()  # Dummy Response
 
     username_filename = f"{username}_{filename}"
-    with open(username_filename , "rb") as file:
-        file_size = os.path.getsize(username_filename )
+    with open(username_filename, "rb") as file:
+        file_size = os.path.getsize(username_filename)
         print(file_size)
         data = file.read(CHUNK_SIZE)
         i = 1
@@ -51,34 +51,39 @@ def replicate(node_ip, node_port, username, filename):
     sender.send_pyobj(msg)
     response = sender.recv_pyobj()
     print("File Uploaded")
+    exit(0)
 
 
 def handle_message(msg, success_socket):
-    print("Iam Receiving now", msg.message_type)
     if msg.message_type == VIDEO_NAME_REQUEST:
+        print(f"I am receiving request {VIDEO_NAME_REQUEST} request")
         create_file(msg)
         return message(OK, OK)
     elif msg.message_type == VIDEO:
+        print(f"I am receiving request {VIDEO} request")
         append_file(msg)
         return message(OK, OK)
     elif msg.message_type == VIDEO_DONE:
+        print(f"I am receiving request {VIDEO_DONE} request")
         new_msg = message(UPLOAD_SUCCESS, msg.message_content)
+        print(f"I am sending {UPLOAD_SUCCESS} request to master tracker")
         success_socket.send_pyobj(new_msg)
         response = success_socket.recv_pyobj()
-        print(response.message_type)
+        print(f"{UPLOAD_SUCCESS} sent {response.message_type}")
         return message(OK, OK)
     elif msg.message_type == DOWNLOAD_PROCESS:
+        print(f"I am receiving request {DOWNLOAD_PROCESS} request")
         chunk, username, filename = msg.message_content
         data = read_chunk(chunk, username, filename)
         return message(DOWNLOAD_PROCESS, [chunk, data])
     elif msg.message_type == REPLICATION_REQUEST:
+        print(f"I am receiving request {REPLICATION_REQUEST} request")
         ip_ports = msg.message_content[0]
         username = msg.message_content[1]
         filename = msg.message_content[2]
-        print(f"Iam received {ip_ports} , {filename}")
+        print(f"I received {ip_ports} , {filename}")
         for ip_port in ip_ports:
             Thread(target=replicate, args=(ip_port[0], ip_port[1], username, filename,)).start()
-
         return message(OK, OK)
 
 
@@ -104,6 +109,7 @@ def node_keeper_client(node_ip, node_port):
     while True:
         msg = socket.recv_pyobj()
         reply = handle_message(msg, success_socket)
+        print(f"{reply.message_type} sent back")
         socket.send_pyobj(reply)
 
 

@@ -14,6 +14,9 @@ def upload(username, filename):
 
     sender_context = zmq.Context()
     sender = sender_context.socket(zmq.REQ)
+    if node_ip is None:
+        print("node keepers are down")
+        return
     sender.connect(f"tcp://{node_ip}:{node_port}")
 
     # send username , video filename.
